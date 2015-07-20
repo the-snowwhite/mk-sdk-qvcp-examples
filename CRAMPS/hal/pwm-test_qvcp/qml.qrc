@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file>main.qml</file>
+        <file>pwm-test_qvcp.pwm-test_qvcp/pwm-test_qvcp.qml</file>
+        <file>pwm-test_qvcp.pwm-test_qvcp/description.ini</file>
+    </qresource>
+</RCC>
+

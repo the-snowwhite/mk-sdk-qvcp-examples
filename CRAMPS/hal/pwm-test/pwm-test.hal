@@ -1,0 +1,79 @@
+# set logging to 'pretty high'
+log rt 5
+log user 5
+
+
+#loadrt threads name1=base-thread period1=10000 name2=servo-thread period2=1000000
+loadrt threads name1=base-thread period1=1000000
+#loadrt hal_bb_gpio output_pins=826,914,923,925 input_pins=807,808,809,810,817,911,913
+loadrt hal_bb_gpio output_pins=826,914,923
+
+#loadrt hal_pru_generic prucode=$(HAL_RTMOD_DIR)/xenomai/pru_generic.bin num_pwmgens=1 halname=hpg pru_period=5000
+loadrt hal_pru_generic prucode=/usr/lib/linuxcnc/xenomai/pru_generic.bin num_stepgens=0 num_pwmgens=1 halname=hpg pru_period=5000
+
+# ################################################
+# THREADS
+# ################################################
+addf   hpg.capture-position                 base-thread
+addf   bb_gpio.read                         base-thread
+addf   hpg.update                           base-thread
+addf   bb_gpio.write                        base-thread
+
+start
+
+# ################################################
+# REMOTE COMPONENT
+# ################################################
+# wait the halcmd script until the UI has created the remote component 'motorctrl':
+# waitexists default
+
+# OR preconfigure the remote component like so
+# in this case no waiting required
+# pin count, name, type, direction must match exactly what
+# is in the GUI
+newcomp default timer=100 acceptdefaults
+newpin  default default.estop     bit out
+newpin  default default.power     bit out
+newpin  default default.enable    bit out
+newpin  default default.slider    float out
+ready   default
+
+#newcomp fdm-f0 timer=100
+#newpin  fdm-f0 fdm-f0.set float io
+#ready   fdm-f0
+
+# Machine power
+net power.set => bb_gpio.p9.out-23
+
+# Tie machine power signal to the CRAMPS LED
+# Feel free to tie any other signal you like to the LED
+#net estop.set => bb_gpio.p9.out-25
+
+# ##################################################
+# PWM
+# ##################################################
+setp hpg.pwmgen.00.pwm_period       10000000
+# motor power enable
+#net estop.set => bb_gpio.p9.out-14
+
+# drive estop-sw
+net estop.set => bb_gpio.p8.out-26
+setp bb_gpio.p8.out-26.invert 1
+setp bb_gpio.p9.out-14.invert 1
+
+# FET 6 - Fan / LED
+setp hpg.pwmgen.00.out.00.pin       922
+net enable.set  => hpg.pwmgen.00.out.00.enable
+net f0.set => hpg.pwmgen.00.out.00.value
+
+# ##################################################
+# UI linking
+# ##################################################
+net estop.set          <= default.estop
+net power.set          <= default.power
+net enable.set         <= default.enable
+net f0.set             <= default.slider
+
+# start haltalk server
+# add -d or -d -d to log message transactions
+loadusr -W haltalk
